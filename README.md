@@ -37,15 +37,6 @@ The project has the following dependencies:
 - [React Router DOM](https://reactrouter.com) (version 6.8.1)
 - [Universal Cookie](https://www.npmjs.com/package/universal-cookie) (version 4.0.4)
 
-## Development Dependencies
-
-The project has the following development dependencies:
-
-- [TypeScript Definitions for React](https://www.npmjs.com/package/@types/react) (version 18.0.27)
-- [TypeScript Definitions for React DOM](https://www.npmjs.com/package/@types/react-dom) (version 18.0.10)
-- [Vite](https://vitejs.dev) (version 4.1.0)
-- [Vite React Plugin](https://github.com/vitejs/vite/tree/main/packages/plugin-react) (version 3.1.0)
-
 Feel free to explore the codebase and make any necessary modifications for your use case.
 
 Happy coding!
