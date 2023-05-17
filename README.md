@@ -1,5 +1,5 @@
-# Chatapp
-The [ChatApp](https://rifkichat.netlify.app)
+# WebChatApp
+The [WebChatApp](https://rifkichat.netlify.app)
 project is a web-based chat application built using various technologies. It leverages libraries and dependencies such as React, Firebase, Bootstrap, Moment.js, and others. 
 
 ## Installation
