@@ -1,62 +1,63 @@
 import { Link } from "react-router-dom";
-import { auth } from "../firebase-config";
-import { signInWithEmailAndPassword, updateProfile } from "firebase/auth";
+import { auth } from "../firebase-config.js";
+import { signInWithEmailAndPassword } from "firebase/auth";
 import Cookies from "universal-cookie";
 const cookies = new Cookies();
 import React, { useState } from "react";
+import { Envelope, Lock } from "react-bootstrap-icons";
+import "./Login.css";
 
 export default function Login(props) {
-	const [error, setError] = useState(false);
+    const [error, setError] = useState(false);
 
-	const handleSubmit = async (e) => {
-		e.preventDefault();
-		const email = e.target[0].value;
-		const password = e.target[1].value;
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        const email = e.target[0].value;
+        const password = e.target[1].value;
 
-		try {
-			const result = await signInWithEmailAndPassword(auth, email, password);
-			cookies.set("auth-token", result.user.refreshToken);
-			props.setIsAuth(true);
-			setError(false);
-		} catch (error) {
-			setError(true);
-		}
-	};
+        try {
+            const result = await signInWithEmailAndPassword(auth, email, password);
+            cookies.set("auth-token", result.user.refreshToken);
+            props.setIsAuth(true);
+            setError(false);
+        } catch (error) {
+            setError(true);
+        }
+    };
 
-	return (
-		<div className=" min-vh-100 d-flex justify-content-center align-items-center">
-			<form
-				onSubmit={handleSubmit}
-				className="d-flex flex-column p-3 text-center"
-			>
-				<h1 className="fw-semibold form-label">Login ChatApp Rifki.</h1>
-				<input
-					className=" form-control my-2"
-					type="text"
-					placeholder="Masukkan Email Anda"
-					onChange={() => {
-						setError(null);
-					}}
-				/>
-				<input
-					className=" form-control my-2"
-					type="password"
-					placeholder="Masukkan Password Anda"
-					onChange={() => {
-						setError(null);
-					}}
-				/>
-				{error && (
-					<span style={{ color: "red" }}>Email / Password Tidak Cocok</span>
-				)}
-				<p className="my-2">
-					Belum Punya Akun?{" "}
-					<Link to="/register" className="">
-						Daftar Sekarang.
-					</Link>
-				</p>
-				<button className="btn btn-primary my-2">Login</button>
-			</form>
-		</div>
-	);
+    return (
+        <div className="login-container">
+            <div className="login-card">
+                <h1 className="login-title">Selamat Datang!</h1>
+                <p className="login-subtitle">Silakan masuk untuk melanjutkan</p>
+                <form onSubmit={handleSubmit} className="login-form">
+                    <div className="input-group">
+                        <Envelope className="input-icon" />
+                        <input
+                            type="email"
+                            placeholder="Masukkan Email Anda"
+                            onChange={() => setError(false)}
+                            required
+                        />
+                    </div>
+                    <div className="input-group">
+                        <Lock className="input-icon" />
+                        <input
+                            type="password"
+                            placeholder="Masukkan Password Anda"
+                            onChange={() => setError(false)}
+                            required
+                        />
+                    </div>
+                    {error && (
+                        <p className="error-message">Email atau Password salah.</p>
+                    )}
+                    <button type="submit" className="login-button">Masuk</button>
+                </form>
+                <p className="register-link">
+                    Belum punya akun? <Link to="/register">Daftar sekarang.</Link>
+                </p>
+            </div>
+        </div>
+    );
 }
