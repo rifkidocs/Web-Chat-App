@@ -1,33 +1,44 @@
-import React from "react";
+import React, { useState } from "react";
+import { BoxArrowRight } from "react-bootstrap-icons";
+import "./Room.css";
+
+const rooms = ["Ruang 1", "Ruang 2", "Ruang 3"];
 
 export default function Room(props) {
-	return (
-		<div className=" min-vh-100 d-flex justify-content-center align-items-center">
-			<div className="d-flex flex-column p-2 text-center">
-				<h1>Pilih Nomor Ruangan :</h1>
-				<select className="form-select my-3" aria-label="Default select example" ref={props.roomInputRef}>
-					<option value="belum" selected>Pilih Ruangan</option>
-					<option value="Ruang 1">Ruang 1</option>
-					<option value="Ruang 2">Ruang 2</option>
-					<option value="Ruang 3">Ruang 3</option>
-				</select>
-				<button
-					className="btn btn-primary"
-					onClick={() => {
-                        if (props.roomInputRef.current.value === "belum") {
-                            window.alert("Mohon Pilih Ruangan Terlebih Dahulu")
-                        } else{
-                            props.setRoom(props.roomInputRef.current.value)
-                        } 
-                        
-                    }}
-				>
-					Masuk Ruang 
-				</button>
-                <button onClick={props.signUserOut} className="btn btn-danger mt-3">
-						Log Out
-					</button>
-			</div>
-		</div>
-	);
+    const [selectedRoom, setSelectedRoom] = useState(null);
+
+    const handleEnterRoom = () => {
+        if (selectedRoom) {
+            props.setRoom(selectedRoom);
+        } else {
+            alert("Mohon pilih ruangan terlebih dahulu.");
+        }
+    };
+
+    return (
+        <div className="room-container">
+            <div className="room-card">
+                <button onClick={props.signUserOut} className="logout-button">
+                    <BoxArrowRight size={20} />
+                    <span>Log Out</span>
+                </button>
+                <h1 className="room-title">Pilih Ruangan</h1>
+                <p className="room-subtitle">Pilih ruangan untuk memulai percakapan</p>
+                <div className="room-list">
+                    {rooms.map((room) => (
+                        <div
+                            key={room}
+                            className={`room-item ${selectedRoom === room ? "selected" : ""}`}
+                            onClick={() => setSelectedRoom(room)}
+                        >
+                            {room}
+                        </div>
+                    ))}
+                </div>
+                <button onClick={handleEnterRoom} className="enter-room-button">
+                    Masuk Ruangan
+                </button>
+            </div>
+        </div>
+    );
 }

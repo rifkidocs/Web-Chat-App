@@ -1,408 +1,163 @@
 import React, { useEffect, useState, useRef } from "react";
-import {
-	addDoc,
-	collection,
-	serverTimestamp,
-	onSnapshot,
-	query,
-	where,
-	orderBy,
-	documentId,
-	doc,
-} from "firebase/firestore";
-import { auth, db } from "../firebase-config";
-import {
-	getStorage,
-	ref,
-	uploadBytesResumable,
-	getDownloadURL,
-} from "firebase/storage";
+import { addDoc, collection, serverTimestamp, onSnapshot, query, where, orderBy } from "firebase/firestore";
+import { auth, db } from "../firebase-config.js";
+import { getStorage, ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
 import moment from "moment";
-import Dropdown from "react-bootstrap/Dropdown";
-import { ThreeDots, Trash, Reply } from "react-bootstrap-icons";
+import { ArrowLeft, ThreeDotsVertical, Reply, Trash, Paperclip, Send } from "react-bootstrap-icons";
+import "./Chat.css";
 
 export default function Chat(props) {
-	const { room } = props;
-	let [messageNumber, setMessagesNumber] = useState(0);
-	const [newMessage, setNewMessage] = useState("");
-	const [messages, setMessages] = useState([]);
-	const [replyMessage, setReplyMessage] = useState();
-	const [img, setImg] = useState(false);
-	const messageRef = collection(db, "messages");
-	const storage = getStorage();
-	let currentMessageNumber = messageNumber;
+    const { room } = props;
+    const [newMessage, setNewMessage] = useState("");
+    const [messages, setMessages] = useState([]);
+    const [replyMessage, setReplyMessage] = useState(null);
+    const [img, setImg] = useState(null);
+    const messageRef = collection(db, "messages");
+    const storage = getStorage();
+    const messagesEndRef = useRef(null);
 
-	// Mengupdate Chat
-	useEffect(() => {
-		const queryMessages = query(
-			messageRef,
-			where("room", "==", room),
-			orderBy("createdAt")
-		);
-		const unsuscribe = onSnapshot(queryMessages, (snapshot) => {
-			let messages = [];
-			snapshot.forEach((doc) => {
-				messages.push({ ...doc.data(), id: doc.id });
-			});
-			setMessages(messages);
-		});
+    useEffect(() => {
+        const queryMessages = query(
+            messageRef,
+            where("room", "==", room),
+            orderBy("createdAt")
+        );
+        const unsubscribe = onSnapshot(queryMessages, (snapshot) => {
+            let messages = [];
+            snapshot.forEach((doc) => {
+                messages.push({ ...doc.data(), id: doc.id });
+            });
+            setMessages(messages);
+        });
+        return () => unsubscribe();
+    }, [room]);
 
-		return () => unsuscribe();
-	}, []);
+    useEffect(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }, [messages]);
 
-	// Mengirim File
-	const handleSubmit = async (e) => {
-		e.preventDefault();
+    const handleFileChange = (e) => {
+        if (e.target.files[0]) {
+            setImg(e.target.files[0]);
+        }
+    };
 
-		// Jika tidak ada pesan baru atau gambar yang dipilih, maka keluar dari fungsi
-		if (!newMessage && !img) return;
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        if (!newMessage.trim() && !img) return;
 
-		// Objek yang berisi data pesan yang akan ditambahkan ke Firebase Firestore
-		const messageData = {
-			room,
-			text: newMessage,
-			user: auth.currentUser.displayName,
-			createdAt: serverTimestamp(),
-			image: null,
-		};
+        const messageData = {
+            room,
+            text: newMessage,
+            user: auth.currentUser.displayName,
+            createdAt: serverTimestamp(),
+            image: null,
+            replyTo: replyMessage,
+        };
 
-		// Jika ada gambar dan ada pesan yang dibalas, tambahkan data pesan dan data balasan ke Firestore
-		if (img && replyMessage) {
-			messageData.image = downloadURL;
-			messageData.replyId = replyMessage;
-			messageData.replyUser = messages[replyMessage].user;
-			messageData.replyText = messages[replyMessage].text;
-			messageData.replyImage = messages[replyMessage].image;
-		}
-		// Jika ada gambar dan tidak ada pesan yang dibalas, upload gambar ke Firebase Storage dan tambahkan data pesan ke Firestore
-		else if (img) {
-			const x = Math.random() * 1000;
-			const file = e.target[1]?.files[0];
-			const storageRef = ref(storage, `${x}${file.name}`);
-			const uploadTask = uploadBytesResumable(storageRef, file);
-			uploadTask.on(
-				(error) => console.log(error),
-				() => {
-					getDownloadURL(uploadTask.snapshot.ref).then((downloadURL) => {
-						addDoc(messageRef, {
-							...messageData,
-							image: downloadURL,
-						});
-					});
-				}
-			);
-		}
-		// Jika tidak ada gambar dan ada pesan yang dibalas, tambahkan data pesan dan data balasan ke Firestore
-		else if (replyMessage) {
-			messageData.replyId = replyMessage;
-			messageData.replyUser = messages[replyMessage].user;
-			messageData.replyText = messages[replyMessage].text;
-			addDoc(messageRef, messageData);
-		}
-		// Jika tidak ada gambar dan tidak ada pesan yang dibalas, tambahkan data pesan ke Firestore
-		else {
-			addDoc(messageRef, messageData);
-		}
+        if (img) {
+            const storageRef = ref(storage, `images/${Date.now()}_${img.name}`);
+            const uploadTask = uploadBytesResumable(storageRef, img);
+            uploadTask.on(
+                "state_changed",
+                null,
+                (error) => console.error(error),
+                async () => {
+                    const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+                    await addDoc(messageRef, { ...messageData, image: downloadURL });
+                }
+            );
+        } else {
+            await addDoc(messageRef, messageData);
+        }
 
-		// Setelah data pesan berhasil ditambahkan ke Firestore, kosongkan nilai-nilai variabel untuk persiapan penggunaan selanjutnya
-		setNewMessage("");
-		setImg(false);
-		setReplyMessage(null);
-	};
+        setNewMessage("");
+        setImg(null);
+        setReplyMessage(null);
+    };
 
-
-
-
-
-
-
-
-	;
-
-	return (
-		<div className="d-flex justify-content-center bg-light p-3">
-			<div className="card col-md-10 col-lg-8 col-xl-6 d-flex flex-column p-2 bg-white">
-				<div className=" card-header d-flex justify-content-between align-items-end p-2 ">
-					<button onClick={props.signUserOut} className="btn btn-danger">
-						Log Out
-					</button>
-					<h4 className="fw-semibold">ChatApp</h4>
-					<h5>{room.toUpperCase()}</h5>
-				</div>
-				<div className=" card-body d-flex flex-column">
-					<button
-						onClick={() => window.location.reload(false)}
-						className="btn btn-light mb-3"
-					>
-						Kembali
-					</button>
-
-					<div className="">
-						{messages.map((messageMap) => {
-							currentMessageNumber = messageNumber;
-							setMessagesNumber = messageNumber++;
-							if (messageMap.user === auth.currentUser.displayName) {
-
-								if (messageMap.replyId) {
-									return (
-										<div
-											style={{ backgroundColor: "#3592c4" }}
-											className="text-white container-fluid my-2 p-2 d-flex flex-column rounded text-end"
-											key={messageMap.id}
-										>
-
-											<div
-												style={{ backgroundColor: "#43b0e8" }}
-												className="p-1 d-flex flex-column rounded my-1 text-start"
-											>
-												<div className="d-flex justify-content-between">
-													<span className="fw-bold mx-2 ">
-														{messageMap.replyUser}
-													</span>
-													<div className="mx-2"><Reply /></div>
-												</div>
-												{messageMap.image && (
-													<span className="mx-2">
-														<img
-															src={messages[replyMessage].image}
-															style={{ maxWidth: "10%" }}
-															alt=""
-														/>
-													</span>
-												)}
-												<span className="mx-2 ">{messageMap.replyText}</span>
-											</div>
-
-											<div className="d-flex justify-content-between flex-row-reverse">
-												<span className=" mx-2 fw-bold">{messageMap.user}</span>
-												{messageMap.createdAt && (
-													<span>
-														{moment(messageMap.createdAt.toDate()).fromNow()}
-													</span>
-												)}
-											</div>
-											{messageMap.text && (
-												<span className="mx-2 ">{messageMap.text}</span>
-											)}
-											{messageMap.image && (
-												<span className="mx-2">
-													<img
-														src={messageMap.image}
-														style={{ maxWidth: "40%" }}
-														alt=""
-													/>
-												</span>
-											)}
-										</div>
-									)
-								}
-
-								return (
-									<div
-										style={{ backgroundColor: "#3592c4" }}
-										className="text-white container-fluid my-2 p-2 d-flex flex-column rounded text-end"
-										key={messageMap.id}
-									>
-										<div className="d-flex justify-content-between flex-row-reverse">
-											<span className=" mx-2 fw-bold">{messageMap.user}</span>
-											{messageMap.createdAt && (
-												<span>
-													{moment(messageMap.createdAt.toDate()).fromNow()}
-												</span>
-											)}
-										</div>
-										{messageMap.text && (
-											<span className="mx-2 ">{messageMap.text}</span>
-										)}
-										{messageMap.image && (
-											<span className="mx-2">
-												<img
-													src={messageMap.image}
-													style={{ maxWidth: "40%" }}
-													alt=""
-												/>
-											</span>
-										)}
-									</div>
-								);
-							}
-
-							if (messageMap.replyId) {
-								return (
-									<div
-										style={{ backgroundColor: "#f5f6f7" }}
-										className="text-black container-fluid my-2 p-2 d-flex flex-column rounded text-start"
-										key={messageMap.id}
-									>
-
-										<div
-											style={{ backgroundColor: "#dedede" }}
-											className="p-1 d-flex flex-column rounded my-1 text-start "
-										>
-											<div className="d-flex justify-content-between">
-												<span className="fw-bold mx-2 ">
-													{messageMap.replyUser}
-												</span>
-												<div className="mx-2"><Reply /></div>
-											</div>
-											{messageMap.image && (
-												<span className="mx-2">
-													<img
-														src={messages[replyMessage].image}
-														style={{ maxWidth: "10%" }}
-														alt=""
-													/>
-												</span>
-											)}
-											<span className="mx-2 ">{messageMap.replyText}</span>
-										</div>
-
-										<div className="d-flex justify-content-between flex-row">
-											<span className=" mx-2 fw-bold">{messageMap.user}</span>
-											<div className="d-flex">
-												<Dropdown>
-													<Dropdown.Toggle variant="btn mx-1 p-0 px-2">
-														<ThreeDots fill="black" />
-													</Dropdown.Toggle>
-													<Dropdown.Menu>
-														<Dropdown.Item>
-															<button
-																id={currentMessageNumber}
-																onClick={(e) => {
-																	console.log(messages[e.target.id]);
-																	setReplyMessage(e.target.id);
-																}}
-																className="btn p-0"
-															>
-																Balas
-															</button>
-														</Dropdown.Item>
-													</Dropdown.Menu>
-												</Dropdown>
-												{messageMap.createdAt && (
-													<span>
-														{moment(messageMap.createdAt.toDate()).fromNow()}
-													</span>
-												)}
-											</div>
-										</div>
-										{messageMap.text && (
-											<span className="mx-2 ">{messageMap.text}</span>
-										)}
-										{messageMap.image && (
-											<span className="mx-2">
-												<img
-													src={messageMap.image}
-													style={{ maxWidth: "40%" }}
-													alt=""
-												/>
-											</span>
-										)}
-									</div>
-								)
-							}
-
-
-							return (
-								<div
-									style={{ backgroundColor: "#f5f6f7" }}
-									className="my-2 p-1 w-auto d-flex flex-column rounded"
-									key={messageMap.id}
-								>
-									<div className="d-flex justify-content-between">
-										<span className=" mx-2 fw-bold">{messageMap.user}</span>
-										<div className=" d-flex">
-											<Dropdown>
-												<Dropdown.Toggle variant="btn mx-1 p-0 px-2">
-													<ThreeDots fill="black" />
-												</Dropdown.Toggle>
-												<Dropdown.Menu>
-													<Dropdown.Item>
-														<button
-															id={currentMessageNumber}
-															onClick={(e) => {
-																console.log(messages[e.target.id]);
-																setReplyMessage(e.target.id);
-															}}
-															className="btn p-0"
-														>
-															Balas
-														</button>
-													</Dropdown.Item>
-												</Dropdown.Menu>
-											</Dropdown>
-											{messageMap.createdAt && (
-												<span>
-													{moment(messageMap.createdAt.toDate()).fromNow()}
-												</span>
-											)}
-										</div>
-									</div>
-									{messageMap.text && (
-										<span className="mx-2 ">{messageMap.text}</span>
-									)}
-									{messageMap.image && (
-										<span className="mx-2">
-											<img
-												src={messageMap.image}
-												style={{ maxWidth: "200px" }}
-												alt=""
-											/>
-										</span>
-									)}
-								</div>
-							);
-						})}
-					</div>
-
-					<form onSubmit={handleSubmit} className="d-flex flex-column">
-						{replyMessage && (
-							<div
-								style={{ backgroundColor: "#43b0e8" }}
-								className="p-1 w-auto d-flex flex-column rounded text-white"
-							>
-								<div className=" d-flex justify-content-between">
-									<span className="fw-bold mx-2 ">
-										{messages[replyMessage].user}
-									</span>
-									<button className="btn" onClick={() => { setReplyMessage(null) }}><Trash fill="white" /></button>
-								</div>
-								{messages[replyMessage].image && (
-									<span className="mx-2">
-										<img
-											src={messages[replyMessage].image}
-											style={{ maxWidth: "10%" }}
-											alt=""
-										/>
-									</span>
-								)}
-								<span className="mx-2 ">{messages[replyMessage].text}</span>
-							</div>
-						)}
-
-						<div className="d-flex">
-							<input
-								className=" form-control w-100 rounded"
-								placeholder="Tulis pesanmu disini..."
-								onChange={(e) => setNewMessage(e.target.value)}
-								value={newMessage}
-							/>
-							<input
-								type="file"
-								id="file"
-								onChange={(e) => {
-									setImg(true);
-								}}
-								className="btn btn-light ms-1"
-								style={{ maxWidth: "35%" }}
-							/>
-							<button type="submit" className="btn btn-light ms-1">
-								Kirim
-							</button>
-						</div>
-					</form>
-				</div>
-			</div>
-		</div>
-	);
+    return (
+        <div className="chat-container">
+            <div className="chat-card">
+                <div className="chat-header">
+                    <button onClick={() => window.location.reload()} className="back-button">
+                        <ArrowLeft size={20} />
+                    </button>
+                    <div className="room-info">
+                        <h4 className="room-name">{room.toUpperCase()}</h4>
+                        <p className="room-status">Online</p>
+                    </div>
+                    <button onClick={props.signUserOut} className="logout-button-chat">
+                        Log Out
+                    </button>
+                </div>
+                <div className="chat-body">
+                    {messages.map((message) => (
+                        <Message
+                            key={message.id}
+                            message={message}
+                            isCurrentUser={message.user === auth.currentUser.displayName}
+                            onReply={() => setReplyMessage(message)}
+                        />
+                    ))}
+                    <div ref={messagesEndRef} />
+                </div>
+                <div className="chat-footer">
+                    {replyMessage && (
+                        <div className="reply-preview">
+                            <div className="reply-info">
+                                <p className="reply-user">Membalas kepada <strong>{replyMessage.user}</strong></p>
+                                <p className="reply-text">{replyMessage.text}</p>
+                            </div>
+                            <button onClick={() => setReplyMessage(null)} className="cancel-reply-button">
+                                <Trash size={16} />
+                            </button>
+                        </div>
+                    )}
+                    <form onSubmit={handleSubmit} className="message-form">
+                        <input
+                            type="text"
+                            className="message-input"
+                            placeholder="Tulis pesanmu di sini..."
+                            value={newMessage}
+                            onChange={(e) => setNewMessage(e.target.value)}
+                        />
+                        <label htmlFor="file-upload" className="attach-button">
+                            <Paperclip size={20} />
+                        </label>
+                        <input id="file-upload" type="file" onChange={handleFileChange} />
+                        <button type="submit" className="send-button">
+                            <Send size={20} />
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    );
 }
+
+const Message = ({ message, isCurrentUser, onReply }) => {
+    return (
+        <div className={`message-wrapper ${isCurrentUser ? "sent" : "received"}`}>
+            <div className="message-content">
+                {!isCurrentUser && <p className="message-user">{message.user}</p>}
+                {message.replyTo && (
+                    <div className="replied-to">
+                        <p className="replied-user"><strong>{message.replyTo.user}</strong></p>
+                        <p>{message.replyTo.text}</p>
+                    </div>
+                )}
+                {message.image && <img src={message.image} alt="attachment" className="message-image" />}
+                <p className="message-text">{message.text}</p>
+                <div className="message-meta">
+                    <p className="message-time">{moment(message.createdAt?.toDate()).format("HH:mm")}</p>
+                    {!isCurrentUser && (
+                        <button onClick={onReply} className="reply-button">
+                            <Reply size={16} />
+                        </button>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+};
